@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Recruitment System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1 class="mb-4">Welcome to the Recruitment System</h1>
+        <p class="lead">This system helps you manage job applicants and match them with suitable positions.</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Applicants</h5>
+                <p class="card-text">Manage job applicants and their profiles.</p>
+                <a href="{{ url_for('applicants') }}" class="btn btn-primary">View Applicants</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Jobs</h5>
+                <p class="card-text">Manage job postings and requirements.</p>
+                <a href="{{ url_for('jobs') }}" class="btn btn-primary">View Jobs</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Allocation</h5>
+                <p class="card-text">Match applicants with suitable jobs.</p>
+                <a href="{{ url_for('allocate') }}" class="btn btn-primary">Run Allocation</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Quick Actions</h5>
+                <div class="btn-group">
+                    <a href="{{ url_for('add_applicant') }}" class="btn btn-success">Add New Applicant</a>
+                    <a href="{{ url_for('add_job') }}" class="btn btn-success">Add New Job</a>
+                    <a href="{{ url_for('add_skill') }}" class="btn btn-success">Add New Skill</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Applicants - Recruitment System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Applicants</h1>
+    <a href="{{ url_for('add_applicant') }}" class="btn btn-primary">Add New Applicant</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Experience (years)</th>
+                <th>Industry</th>
+                <th>Location</th>
+                <th>Desired Salary</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for applicant in applicants %}
+            <tr>
+                <td>{{ applicant['name'] }}</td>
+                <td>{{ applicant['email'] }}</td>
+                <td>{{ applicant['experience'] }}</td>
+                <td>{{ applicant['industry'] }}</td>
+                <td>{{ applicant['location'] }}</td>
+                <td>${{ "%.2f"|format(applicant['desired_salary']) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %} 

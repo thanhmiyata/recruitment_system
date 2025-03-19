@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Applicant - Recruitment System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <h1 class="mb-4">Add New Applicant</h1>
+        
+        <form method="post" class="needs-validation" novalidate>
+            <div class="mb-3">
+                <label for="name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="name" name="name" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" name="email" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="experience" class="form-label">Experience (years)</label>
+                <input type="number" class="form-control" id="experience" name="experience" min="0" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="industry" class="form-label">Industry</label>
+                <input type="text" class="form-control" id="industry" name="industry" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="location" class="form-label">Location</label>
+                <input type="text" class="form-control" id="location" name="location" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="desired_salary" class="form-label">Desired Salary</label>
+                <input type="number" class="form-control" id="desired_salary" name="desired_salary" min="0" step="0.01" required>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Skills</label>
+                {% for skill in skills %}
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="skills" value="{{ skill['id'] }}" id="skill_{{ skill['id'] }}">
+                    <label class="form-check-label" for="skill_{{ skill['id'] }}">
+                        {{ skill['name'] }}
+                        <select name="skill_level_{{ skill['id'] }}" class="form-select form-select-sm d-inline-block w-auto ms-2">
+                            {% for i in range(1, 11) %}
+                            <option value="{{ i }}">{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Add Applicant</button>
+                <a href="{{ url_for('applicants') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Form validation
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms).forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+            if (!form.checkValidity()) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()
+</script>
+{% endblock %} 

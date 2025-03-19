@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs - Recruitment System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Jobs</h1>
+    <a href="{{ url_for('add_job') }}" class="btn btn-primary">Add New Job</a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Required Experience (years)</th>
+                <th>Industry</th>
+                <th>Location</th>
+                <th>Offered Salary</th>
+                <th>Max Candidates</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>{{ job['title'] }}</td>
+                <td>{{ job['required_experience'] }}</td>
+                <td>{{ job['industry'] }}</td>
+                <td>{{ job['location'] }}</td>
+                <td>${{ "%.2f"|format(job['offered_salary']) }}</td>
+                <td>{{ job['max_candidates'] }}</td>
+                <td>
+                    <button class="btn btn-sm btn-info view-candidates" data-job-id="{{ job['id'] }}" data-job-title="{{ job['title'] }}">
+                        View Top Candidates
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal for displaying candidates -->
+<div class="modal fade" id="candidatesModal" tabindex="-1" aria-labelledby="candidatesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="candidatesModalLabel">Top Candidates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="candidatesLoading" class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="candidatesContent" style="display: none;">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Experience</th>
+                                <th>Desired Salary</th>
+                                <th>Match Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="candidatesList">
+                            <!-- Candidates will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="candidatesError" class="alert alert-danger" style="display: none;">
+                    An error occurred while loading candidates.
+                </div>
+                <div id="noCandidates" class="alert alert-info" style="display: none;">
+                    No suitable candidates found for this job.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all "View Top Candidates" buttons
+        const viewCandidatesButtons = document.querySelectorAll('.view-candidates');
+        
+        // Modal elements
+        const candidatesModal = document.getElementById('candidatesModal');
+        const modalTitle = document.getElementById('candidatesModalLabel');
+        const candidatesLoading = document.getElementById('candidatesLoading');
+        const candidatesContent = document.getElementById('candidatesContent');
+        const candidatesList = document.getElementById('candidatesList');
+        const candidatesError = document.getElementById('candidatesError');
+        const noCandidates = document.getElementById('noCandidates');
+        
+        // Add click event to buttons
+        viewCandidatesButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const jobId = this.getAttribute('data-job-id');
+                const jobTitle = this.getAttribute('data-job-title');
+                
+                // Update modal title
+                modalTitle.textContent = `Top Candidates for ${jobTitle}`;
+                
+                // Reset modal content
+                candidatesLoading.style.display = 'block';
+                candidatesContent.style.display = 'none';
+                candidatesError.style.display = 'none';
+                noCandidates.style.display = 'none';
+                candidatesList.innerHTML = '';
+                
+                // Show modal
+                const modal = new bootstrap.Modal(candidatesModal);
+                modal.show();
+                
+                // Fetch candidates
+                fetch(`/api/job/${jobId}/top_candidates`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(candidates => {
+                        candidatesLoading.style.display = 'none';
+                        
+                        if (candidates.length === 0) {
+                            noCandidates.style.display = 'block';
+                            return;
+                        }
+                        
+                        candidatesContent.style.display = 'block';
+                        
+                        // Populate table with candidates
+                        candidates.forEach(candidate => {
+                            const row = document.createElement('tr');
+                            
+                            row.innerHTML = `
+                                <td>${candidate.name}</td>
+                                <td>${candidate.email}</td>
+                                <td>${candidate.experience} years</td>
+                                <td>$${candidate.desired_salary.toFixed(2)}</td>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar" role="progressbar" 
+                                             style="width: ${candidate.match_score}%; font-weight: bold;" 
+                                             aria-valuenow="${candidate.match_score}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            ${candidate.match_score.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                </td>
+                            `;
+                            
+                            candidatesList.appendChild(row);
+                        });
+                    })
+                    .catch(error => {
+                        candidatesLoading.style.display = 'none';
+                        candidatesError.style.display = 'block';
+                        console.error('Error fetching candidates:', error);
+                    });
+            });
+        });
+    });
+</script>
+{% endblock %} 

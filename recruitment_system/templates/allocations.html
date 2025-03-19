@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Allocations - Recruitment System{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Job Allocations</h1>
+
+{% for job in jobs %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">{{ job['title'] }}</h5>
+        <small class="text-muted">
+            {{ job['industry'] }} | {{ job['location'] }} | 
+            Required Experience: {{ job['required_experience'] }} years |
+            Offered Salary: ${{ "%.2f"|format(job['offered_salary']) }}
+        </small>
+    </div>
+    <div class="card-body">
+        {% if job['id'] in allocations %}
+            {% for applicant_id, score in allocations[job['id']] %}
+                {% set applicant = applicants|selectattr('id', 'equalto', applicant_id)|first %}
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ applicant['name'] }}</h6>
+                        <p class="card-text mb-1">
+                            <small class="text-muted">
+                                {{ applicant['email'] }} | 
+                                Experience: {{ applicant['experience'] }} years |
+                                Desired Salary: ${{ "%.2f"|format(applicant['desired_salary']) }}
+                            </small>
+                        </p>
+                        <div class="progress mb-0" style="height: 20px;">
+                            <div class="progress-bar score-bar" data-score="{{ score }}" role="progressbar">
+                                Match Score: {{ "%.1f"|format(score) }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted mb-0">No suitable candidates found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var progressBars = document.querySelectorAll('.score-bar');
+        progressBars.forEach(function(bar) {
+            var score = bar.getAttribute('data-score');
+            bar.style.width = score + '%';
+        });
+    });
+</script>
+
+<style>
+.progress-bar {
+    text-align: center;
+    color: white;
+    font-weight: bold;
+}
+</style>
+{% endblock %} 
