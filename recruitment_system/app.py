@@ -219,6 +219,64 @@ def top_candidates(job_id):
     conn.close()
     return jsonify(top_candidates)
 
+@app.route('/api/applicant/<int:applicant_id>')
+def get_applicant_details(applicant_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Lấy thông tin cơ bản của ứng viên
+    cursor.execute('''
+        SELECT id, name, email, experience, industry, location, desired_salary
+        FROM applicants WHERE id = ?
+    ''', (applicant_id,))
+    applicant = cursor.fetchone()
+    
+    if not applicant:
+        conn.close()
+        return jsonify({'error': 'Applicant not found'}), 404
+    
+    # Chuyển đổi thành dictionary
+    applicant_dict = {
+        'id': applicant[0],
+        'name': applicant[1],
+        'email': applicant[2],
+        'experience': applicant[3],
+        'industry': applicant[4],
+        'location': applicant[5],
+        'desired_salary': applicant[6]
+    }
+    
+    # Lấy danh sách kỹ năng của ứng viên
+    cursor.execute('''
+        SELECT s.name, aps.level
+        FROM applicant_skills aps
+        JOIN skills s ON s.id = aps.skill_id
+        WHERE aps.applicant_id = ?
+    ''', (applicant_id,))
+    skills = [{'name': row[0], 'level': row[1]} for row in cursor.fetchall()]
+    
+    # Lấy danh sách đơn ứng tuyển
+    cursor.execute('''
+        SELECT j.title, a.status, a.application_date
+        FROM applications a
+        JOIN jobs j ON j.id = a.job_id
+        WHERE a.applicant_id = ?
+    ''', (applicant_id,))
+    applications = [
+        {
+            'job_title': row[0],
+            'status': row[1],
+            'application_date': row[2]
+        }
+        for row in cursor.fetchall()
+    ]
+    
+    applicant_dict['skills'] = skills
+    applicant_dict['applications'] = applications
+    
+    conn.close()
+    return jsonify(applicant_dict)
+
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
         init_db()

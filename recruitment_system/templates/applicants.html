@@ -22,7 +22,7 @@
         </thead>
         <tbody>
             {% for applicant in applicants %}
-            <tr>
+            <tr class="applicant-row" data-applicant-id="{{ applicant['id'] }}" style="cursor: pointer;">
                 <td>{{ applicant['name'] }}</td>
                 <td>{{ applicant['email'] }}</td>
                 <td>{{ applicant['experience'] }}</td>
@@ -34,4 +34,143 @@
         </tbody>
     </table>
 </div>
+
+<!-- Modal -->
+<div class="modal fade" id="applicantModal" tabindex="-1" aria-labelledby="applicantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="applicantModalLabel">Applicant Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2 mb-3">Basic Information</h6>
+                        <p><strong>Name:</strong> <span id="modal-name"></span></p>
+                        <p><strong>Email:</strong> <span id="modal-email"></span></p>
+                        <p><strong>Experience:</strong> <span id="modal-experience"></span> years</p>
+                        <p><strong>Industry:</strong> <span id="modal-industry"></span></p>
+                        <p><strong>Location:</strong> <span id="modal-location"></span></p>
+                        <p><strong>Desired Salary:</strong> $<span id="modal-salary"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2 mb-3">Skills</h6>
+                        <div id="modal-skills" class="mb-4">
+                            <!-- Skills will be inserted here -->
+                        </div>
+                        
+                        <h6 class="border-bottom pb-2 mb-3">Applications</h6>
+                        <div id="modal-applications">
+                            <!-- Applications will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded');
+    
+    // Khởi tạo modal
+    const modalElement = document.getElementById('applicantModal');
+    console.log('Modal element:', modalElement);
+    const applicantModal = new bootstrap.Modal(modalElement);
+    console.log('Modal initialized');
+    
+    // Xử lý sự kiện click vào hàng
+    const rows = document.querySelectorAll('.applicant-row');
+    console.log('Found applicant rows:', rows.length);
+    
+    rows.forEach(row => {
+        row.addEventListener('click', async function() {
+            const applicantId = this.dataset.applicantId;
+            console.log('Clicked applicant ID:', applicantId);
+            
+            try {
+                console.log('Fetching applicant details...');
+                const response = await fetch(`/api/applicant/${applicantId}`);
+                if (!response.ok) throw new Error('Failed to fetch applicant details');
+                
+                const data = await response.json();
+                console.log('Received data:', data);
+                
+                // Cập nhật thông tin cơ bản
+                document.getElementById('modal-name').textContent = data.name;
+                document.getElementById('modal-email').textContent = data.email;
+                document.getElementById('modal-experience').textContent = data.experience;
+                document.getElementById('modal-industry').textContent = data.industry;
+                document.getElementById('modal-location').textContent = data.location;
+                document.getElementById('modal-salary').textContent = data.desired_salary.toFixed(2);
+                
+                // Hiển thị kỹ năng
+                const skillsHtml = data.skills.map(skill => `
+                    <div class="skill-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold">${skill.name}</span>
+                            <span class="badge bg-primary">${skill.level}/10</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: ${skill.level * 10}%;" 
+                                 aria-valuenow="${skill.level}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="10">
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('modal-skills').innerHTML = 
+                    data.skills.length ? skillsHtml : '<p class="text-muted">No skills listed</p>';
+                
+                // Hiển thị đơn ứng tuyển
+                const applicationsHtml = data.applications.map(app => `
+                    <div class="application-item mb-3 p-2 border rounded">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold">${app.job_title}</span>
+                            <span class="badge ${getStatusBadgeClass(app.status)}">${app.status}</span>
+                        </div>
+                        <small class="text-muted d-block">Applied on: ${formatDate(app.application_date)}</small>
+                    </div>
+                `).join('');
+                document.getElementById('modal-applications').innerHTML = 
+                    data.applications.length ? applicationsHtml : '<p class="text-muted">No applications yet</p>';
+                
+                console.log('Showing modal');
+                applicantModal.show();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to load applicant details');
+            }
+        });
+    });
+    
+    // Helper function để format trạng thái
+    function getStatusBadgeClass(status) {
+        switch (status.toLowerCase()) {
+            case 'approved': return 'bg-success';
+            case 'rejected': return 'bg-danger';
+            default: return 'bg-warning';
+        }
+    }
+    
+    // Helper function để format ngày
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+});
+</script>
 {% endblock %} 
