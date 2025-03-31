@@ -13,8 +13,7 @@
         <thead>
             <tr>
                 <th>Title</th>
-                <th>Required Experience (years)</th>
-                <th>Industry</th>
+                <th>Required Experience</th>
                 <th>Location</th>
                 <th>Offered Salary</th>
                 <th>Max Candidates</th>
@@ -25,14 +24,13 @@
             {% for job in jobs %}
             <tr>
                 <td>{{ job['title'] }}</td>
-                <td>{{ job['required_experience'] }}</td>
-                <td>{{ job['industry'] }}</td>
+                <td>{{ job['required_experience'] }} years</td>
                 <td>{{ job['location'] }}</td>
                 <td>${{ "%.2f"|format(job['offered_salary']) }}</td>
                 <td>{{ job['max_candidates'] }}</td>
                 <td>
-                    <button class="btn btn-sm btn-info view-candidates" data-job-id="{{ job['id'] }}" data-job-title="{{ job['title'] }}">
-                        View Top Candidates
+                    <button class="btn btn-sm btn-info view-candidates" data-job-id="{{ job['id'] }}">
+                        Top Candidates
                     </button>
                 </td>
             </tr>
@@ -41,7 +39,7 @@
     </table>
 </div>
 
-<!-- Modal for displaying candidates -->
+<!-- Candidates Modal -->
 <div class="modal fade" id="candidatesModal" tabindex="-1" aria-labelledby="candidatesModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -50,32 +48,55 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div id="candidatesLoading" class="text-center">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
+                <!-- Job Details Section -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Job Details</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Title:</strong> <span id="job-title"></span></p>
+                                <p><strong>Required Experience:</strong> <span id="job-experience"></span> years</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Location:</strong> <span id="job-location"></span></p>
+                                <p><strong>Offered Salary:</strong> $<span id="job-salary"></span></p>
+                                <p><strong>Max Candidates:</strong> <span id="job-max-candidates"></span></p>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <strong>Required Skills:</strong>
+                            <div id="job-skills" class="mt-2">
+                                <!-- Skills will be inserted here -->
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div id="candidatesContent" style="display: none;">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Experience</th>
-                                <th>Desired Salary</th>
-                                <th>Match Score</th>
-                            </tr>
-                        </thead>
-                        <tbody id="candidatesList">
-                            <!-- Candidates will be loaded here -->
-                        </tbody>
-                    </table>
-                </div>
-                <div id="candidatesError" class="alert alert-danger" style="display: none;">
-                    An error occurred while loading candidates.
-                </div>
-                <div id="noCandidates" class="alert alert-info" style="display: none;">
-                    No suitable candidates found for this job.
+
+                <!-- Candidates Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Top Candidates</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Location</th>
+                                        <th>Experience</th>
+                                        <th>Desired Salary</th>
+                                        <th>Match Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="candidates-list">
+                                    <!-- Candidates will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -85,90 +106,278 @@
     </div>
 </div>
 
+<!-- Modal hiển thị chi tiết ứng viên -->
+<div class="modal fade" id="applicantModal" tabindex="-1" aria-labelledby="applicantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="applicantModalLabel">Applicant Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Thông tin cơ bản -->
+                    <div class="col-md-6">
+                        <h6>Basic Information</h6>
+                        <p><strong>Name:</strong> <span id="applicantName"></span></p>
+                        <p><strong>Email:</strong> <span id="applicantEmail"></span></p>
+                        <p><strong>Experience:</strong> <span id="applicantExperience"></span> years</p>
+                        <p><strong>Location:</strong> <span id="applicantLocation"></span></p>
+                        <p><strong>Desired Salary:</strong> $<span id="applicantSalary"></span></p>
+                    </div>
+                    <!-- Thông tin công việc -->
+                    <div class="col-md-6">
+                        <h6>Job Requirements</h6>
+                        <p><strong>Title:</strong> <span id="jobTitle"></span></p>
+                        <p><strong>Company:</strong> <span id="jobCompany"></span></p>
+                        <p><strong>Required Experience:</strong> <span id="jobExperience"></span> years</p>
+                        <p><strong>Location:</strong> <span id="jobLocation"></span></p>
+                        <p><strong>Offered Salary:</strong> $<span id="jobSalary"></span></p>
+                    </div>
+                </div>
+                
+                <!-- So sánh kỹ năng -->
+                <div class="mt-4">
+                    <h6>Skills Comparison</h6>
+                    <div id="skillsComparison"></div>
+                </div>
+                
+                <!-- Điểm so sánh -->
+                <div class="mt-4">
+                    <h6>Match Scores</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p>Experience Match: <span id="experienceScore"></span>%</p>
+                            <div class="progress mb-2">
+                                <div class="progress-bar" id="experienceBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <p>Location Match: <span id="locationScore"></span>%</p>
+                            <div class="progress mb-2">
+                                <div class="progress-bar" id="locationBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <p>Salary Match: <span id="salaryScore"></span>%</p>
+                            <div class="progress mb-2">
+                                <div class="progress-bar" id="salaryBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <p>Skills Match: <span id="skillsScore"></span>%</p>
+                            <div class="progress mb-2">
+                                <div class="progress-bar" id="skillsBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <h5 class="mt-3">Overall Match Score: <span id="overallScore"></span>%</h5>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" id="overallBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Get all "View Top Candidates" buttons
-        const viewCandidatesButtons = document.querySelectorAll('.view-candidates');
-        
-        // Modal elements
-        const candidatesModal = document.getElementById('candidatesModal');
-        const modalTitle = document.getElementById('candidatesModalLabel');
-        const candidatesLoading = document.getElementById('candidatesLoading');
-        const candidatesContent = document.getElementById('candidatesContent');
-        const candidatesList = document.getElementById('candidatesList');
-        const candidatesError = document.getElementById('candidatesError');
-        const noCandidates = document.getElementById('noCandidates');
-        
-        // Add click event to buttons
-        viewCandidatesButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const jobId = this.getAttribute('data-job-id');
-                const jobTitle = this.getAttribute('data-job-title');
+document.addEventListener('DOMContentLoaded', function() {
+    const candidatesModal = new bootstrap.Modal(document.getElementById('candidatesModal'));
+    const applicantModal = new bootstrap.Modal(document.getElementById('applicantModal'));
+    
+    // Function to show applicant details
+    function showApplicantDetails(applicantId, jobId) {
+        fetch(`/api/applicant_details/${applicantId}/${jobId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Cập nhật thông tin ứng viên
+                document.getElementById('applicantName').textContent = data.applicant.name;
+                document.getElementById('applicantEmail').textContent = data.applicant.email;
+                document.getElementById('applicantExperience').textContent = data.applicant.experience;
+                document.getElementById('applicantLocation').textContent = data.applicant.location;
+                document.getElementById('applicantSalary').textContent = data.applicant.desired_salary;
                 
-                // Update modal title
-                modalTitle.textContent = `Top Candidates for ${jobTitle}`;
+                // Cập nhật thông tin công việc
+                document.getElementById('jobTitle').textContent = data.job.title;
+                document.getElementById('jobCompany').textContent = data.job.company;
+                document.getElementById('jobExperience').textContent = data.job.required_experience;
+                document.getElementById('jobLocation').textContent = data.job.location;
+                document.getElementById('jobSalary').textContent = data.job.offered_salary;
                 
-                // Reset modal content
-                candidatesLoading.style.display = 'block';
-                candidatesContent.style.display = 'none';
-                candidatesError.style.display = 'none';
-                noCandidates.style.display = 'none';
-                candidatesList.innerHTML = '';
+                // Cập nhật so sánh kỹ năng
+                const skillsComparison = document.getElementById('skillsComparison');
+                skillsComparison.innerHTML = '';
+                data.comparison.skill_scores.forEach(skill => {
+                    const skillDiv = document.createElement('div');
+                    skillDiv.className = 'mb-2';
+                    skillDiv.innerHTML = `
+                        <p><strong>${skill.name}</strong></p>
+                        <p>Applicant Level: ${skill.applicant_level} / Required Level: ${skill.required_level}</p>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: ${skill.score}%">${skill.score}%</div>
+                        </div>
+                    `;
+                    skillsComparison.appendChild(skillDiv);
+                });
                 
-                // Show modal
-                const modal = new bootstrap.Modal(candidatesModal);
-                modal.show();
+                // Cập nhật điểm so sánh
+                console.log('Experience Score:', data.comparison.experience_score);
+                console.log('Location Match:', data.comparison.location_match);
+                console.log('Salary Score:', data.comparison.salary_score);
+                console.log('Total Skill Score:', data.comparison.total_skill_score);
+                console.log('Overall Score:', data.comparison.overall_score);
                 
-                // Fetch candidates
-                fetch(`/api/job/${jobId}/top_candidates`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(candidates => {
-                        candidatesLoading.style.display = 'none';
-                        
-                        if (candidates.length === 0) {
-                            noCandidates.style.display = 'block';
-                            return;
-                        }
-                        
-                        candidatesContent.style.display = 'block';
-                        
-                        // Populate table with candidates
-                        candidates.forEach(candidate => {
-                            const row = document.createElement('tr');
-                            
-                            row.innerHTML = `
-                                <td>${candidate.name}</td>
-                                <td>${candidate.email}</td>
-                                <td>${candidate.experience} years</td>
-                                <td>$${candidate.desired_salary.toFixed(2)}</td>
-                                <td>
-                                    <div class="progress" style="height: 20px;">
-                                        <div class="progress-bar" role="progressbar" 
-                                             style="width: ${candidate.match_score}%; font-weight: bold;" 
-                                             aria-valuenow="${candidate.match_score}" 
-                                             aria-valuemin="0" 
-                                             aria-valuemax="100">
-                                            ${candidate.match_score.toFixed(1)}%
-                                        </div>
-                                    </div>
-                                </td>
-                            `;
-                            
-                            candidatesList.appendChild(row);
-                        });
-                    })
-                    .catch(error => {
-                        candidatesLoading.style.display = 'none';
-                        candidatesError.style.display = 'block';
-                        console.error('Error fetching candidates:', error);
-                    });
+                document.getElementById('experienceScore').textContent = data.comparison.experience_score.toFixed(1);
+                document.getElementById('locationScore').textContent = data.comparison.location_match.toFixed(1);
+                document.getElementById('salaryScore').textContent = data.comparison.salary_score.toFixed(1);
+                document.getElementById('skillsScore').textContent = data.comparison.total_skill_score.toFixed(1);
+                document.getElementById('overallScore').textContent = data.comparison.overall_score.toFixed(1);
+                
+                // Cập nhật progress bars
+                document.getElementById('experienceBar').style.width = `${data.comparison.experience_score}%`;
+                document.getElementById('locationBar').style.width = `${data.comparison.location_match}%`;
+                document.getElementById('salaryBar').style.width = `${data.comparison.salary_score}%`;
+                document.getElementById('skillsBar').style.width = `${data.comparison.total_skill_score}%`;
+                document.getElementById('overallBar').style.width = `${data.comparison.overall_score}%`;
+                
+                // Hiển thị modal
+                applicantModal.show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load applicant details');
             });
+    }
+    
+    // Helper function to get badge class based on status
+    function getStatusBadgeClass(status) {
+        switch(status.toLowerCase()) {
+            case 'approved': return 'bg-success';
+            case 'rejected': return 'bg-danger';
+            default: return 'bg-warning';
+        }
+    }
+    
+    // Helper function to format date
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleDateString();
+    }
+    
+    // Handle view candidates button click
+    document.querySelectorAll('.view-candidates').forEach(button => {
+        button.addEventListener('click', async function() {
+            const jobId = this.dataset.jobId;
+            const candidatesLoading = document.getElementById('candidates-list');
+            const candidatesError = document.createElement('div');
+            candidatesError.className = 'alert alert-danger';
+            candidatesError.textContent = 'Error loading candidates';
+            candidatesError.style.display = 'none';
+            candidatesLoading.appendChild(candidatesError);
+            
+            try {
+                const response = await fetch(`/api/top_candidates/${jobId}`);
+                if (!response.ok) throw new Error('Failed to fetch candidates');
+                
+                const data = await response.json();
+                console.log('API Response:', data); // Debug log
+                
+                if (!data || !data.candidates || !data.job) {
+                    console.error('Invalid data format:', data);
+                    candidatesError.textContent = 'Invalid data format received from server';
+                    candidatesError.style.display = 'block';
+                    return;
+                }
+                
+                // Update job details
+                document.getElementById('job-title').textContent = data.job.title;
+                document.getElementById('job-experience').textContent = data.job.required_experience;
+                document.getElementById('job-location').textContent = data.job.location;
+                document.getElementById('job-salary').textContent = data.job.offered_salary.toFixed(2);
+                document.getElementById('job-max-candidates').textContent = data.job.max_candidates;
+                
+                // Update required skills
+                const skillsHtml = data.job.skills.map(skill => `
+                    <div class="skill-item mb-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>${skill.name}</span>
+                            <span class="badge bg-primary">Level ${skill.required_level}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: ${skill.required_level * 10}%;" 
+                                 aria-valuenow="${skill.required_level}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="10">
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('job-skills').innerHTML = skillsHtml;
+                
+                // Update candidates list
+                if (data.candidates.length === 0) {
+                    candidatesLoading.innerHTML = '<tr><td colspan="5" class="text-center">No suitable candidates found.</td></tr>';
+                } else {
+                    const candidatesHtml = data.candidates.map(candidate => `
+                        <tr>
+                            <td>
+                                <a href="#" class="text-decoration-none applicant-link" 
+                                   data-applicant-id="${candidate.id}"
+                                   data-job-requirements='${JSON.stringify(data.job)}'>
+                                    ${candidate.name}
+                                </a>
+                            </td>
+                            <td>${candidate.location || 'N/A'}</td>
+                            <td>${candidate.experience} years</td>
+                            <td>$${candidate.desired_salary.toFixed(2)}</td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: ${candidate.match_score}%; font-weight: bold;" 
+                                         aria-valuenow="${candidate.match_score}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        ${candidate.match_score.toFixed(1)}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                    candidatesLoading.innerHTML = candidatesHtml;
+                    
+                    // Add click event listeners to applicant links
+                    candidatesLoading.querySelectorAll('.applicant-link').forEach(link => {
+                        link.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const applicantId = this.dataset.applicantId;
+                            const jobRequirements = JSON.parse(this.dataset.jobRequirements);
+                            showApplicantDetails(applicantId, jobRequirements.id);
+                        });
+                    });
+                }
+                
+                candidatesModal.show();
+            } catch (error) {
+                candidatesLoading.innerHTML = '';
+                candidatesError.style.display = 'block';
+                candidatesLoading.appendChild(candidatesError);
+                console.error('Error fetching candidates:', error);
+            }
         });
     });
+
+    // Thêm event listener cho các job card
+    document.querySelectorAll('.job-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const jobId = this.getAttribute('data-job-id');
+            handleJobClick(jobId);
+        });
+    });
+});
 </script>
 {% endblock %} 

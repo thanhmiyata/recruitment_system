@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 import sqlite3
 import os
-from models.allocation import allocate_candidates, calculate_total_match_score
+from models.allocation import allocate_candidates, calculate_match_score
+from models.database import get_db_connection
+import json
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -23,7 +25,35 @@ def init_db():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Lấy danh sách công việc
+    cursor.execute('''
+        SELECT j.*, GROUP_CONCAT(s.name || ':' || js.required_level) as skills
+        FROM jobs j
+        LEFT JOIN job_skills js ON j.id = js.job_id
+        LEFT JOIN skills s ON js.skill_id = s.id
+        GROUP BY j.id
+    ''')
+    jobs = cursor.fetchall()
+    
+    # Chuyển đổi jobs thành list of dictionaries
+    jobs_list = []
+    for job in jobs:
+        job_dict = dict(job)
+        # Chuyển đổi chuỗi skills thành list
+        if job_dict['skills']:
+            job_dict['skills'] = [
+                {'name': skill.split(':')[0], 'required_level': int(skill.split(':')[1])}
+                for skill in job_dict['skills'].split(',')
+            ]
+        else:
+            job_dict['skills'] = []
+        jobs_list.append(job_dict)
+    
+    conn.close()
+    return render_template('jobs.html', jobs=jobs_list)
 
 @app.route('/applicants')
 def applicants():
@@ -166,113 +196,254 @@ def skills():
     conn.close()
     return render_template('skills.html', skills=skills)
 
-@app.route('/api/job/<int:job_id>/top_candidates')
+@app.route('/api/top_candidates/<int:job_id>')
 def top_candidates(job_id):
-    conn = get_db_connection()
-    
-    # Get job information
-    job = conn.execute('SELECT * FROM jobs WHERE id = ?', (job_id,)).fetchone()
-    
-    if not job:
-        conn.close()
-        return jsonify({"error": "Job not found"}), 404
-    
-    # Get all applicants
-    applicants = conn.execute('SELECT * FROM applicants').fetchall()
-    
-    # Get job skills
-    job_skills = conn.execute(
-        'SELECT s.id, s.name, js.required_level FROM job_skills js '
-        'JOIN skills s ON js.skill_id = s.id '
-        'WHERE js.job_id = ?',
-        (job_id,)
-    ).fetchall()
-    
-    # Calculate match scores for all candidates
-    candidate_scores = []
-    
-    for applicant in applicants:
-        # Get applicant skills
-        applicant_skills = conn.execute(
-            'SELECT s.id, s.name, aps.level FROM applicant_skills aps '
-            'JOIN skills s ON aps.skill_id = s.id '
-            'WHERE aps.applicant_id = ?',
-            (applicant['id'],)
-        ).fetchall()
-        
-        # Calculate match score
-        score = calculate_total_match_score(applicant, job, applicant_skills, job_skills)
-        
-        candidate_scores.append({
-            "id": applicant['id'],
-            "name": applicant['name'],
-            "email": applicant['email'],
-            "experience": applicant['experience'],
-            "desired_salary": applicant['desired_salary'],
-            "match_score": score
-        })
-    
-    # Sort by score in descending order and limit to max_candidates
-    candidate_scores.sort(key=lambda x: x['match_score'], reverse=True)
-    top_candidates = candidate_scores[:job['max_candidates']]
-    
-    conn.close()
-    return jsonify(top_candidates)
-
-@app.route('/api/applicant/<int:applicant_id>')
-def get_applicant_details(applicant_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Lấy thông tin cơ bản của ứng viên
+    # Lấy thông tin công việc
     cursor.execute('''
-        SELECT id, name, email, experience, industry, location, desired_salary
-        FROM applicants WHERE id = ?
+        SELECT j.*, GROUP_CONCAT(s.name || ':' || js.required_level) as skills
+        FROM jobs j
+        LEFT JOIN job_skills js ON j.id = js.job_id
+        LEFT JOIN skills s ON js.skill_id = s.id
+        WHERE j.id = ?
+        GROUP BY j.id
+    ''', (job_id,))
+    job = cursor.fetchone()
+    
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    # Chuyển đổi job thành dictionary
+    job_dict = dict(job)
+    if job_dict['skills']:
+        job_dict['skills'] = [
+            {'name': skill.split(':')[0], 'required_level': int(skill.split(':')[1])}
+            for skill in job_dict['skills'].split(',')
+        ]
+    else:
+        job_dict['skills'] = []
+    
+    # Lấy danh sách ứng viên với điều kiện lọc
+    cursor.execute('''
+        SELECT a.*, GROUP_CONCAT(s.name || ':' || as2.level) as skills
+        FROM applicants a
+        LEFT JOIN applicant_skills as2 ON a.id = as2.applicant_id
+        LEFT JOIN skills s ON as2.skill_id = s.id
+        WHERE a.desired_salary <= ? 
+        AND a.location = ?
+        GROUP BY a.id
+    ''', (job_dict['offered_salary'], job_dict['location']))
+    applicants = cursor.fetchall()
+    
+    if not applicants:
+        conn.close()
+        return jsonify({
+            'job': job_dict,
+            'candidates': []
+        })
+    
+    # Chuyển đổi applicants thành list of dictionaries
+    applicants_list = []
+    for applicant in applicants:
+        applicant_dict = dict(applicant)
+        if applicant_dict['skills']:
+            applicant_dict['skills'] = [
+                {'name': skill.split(':')[0], 'level': int(skill.split(':')[1])}
+                for skill in applicant_dict['skills'].split(',')
+            ]
+        else:
+            applicant_dict['skills'] = []
+        applicants_list.append(applicant_dict)
+    
+    # Tính điểm cho từng ứng viên
+    candidates_list = []
+    for applicant in applicants_list:
+        # Parse skills
+        applicant_skills = {}
+        if applicant['skills']:
+            for skill in applicant['skills']:
+                applicant_skills[skill['name']] = skill['level']
+                
+        job_skills = {}
+        if job_dict['skills']:
+            for skill in job_dict['skills']:
+                job_skills[skill['name']] = skill['required_level']
+        
+        # Calculate individual scores
+        experience_score = min(100, (applicant['experience'] / job_dict['required_experience']) * 100)
+        location_match = 100 if applicant['location'] == job_dict['location'] else 0
+        salary_score = min(100, (job_dict['offered_salary'] / applicant['desired_salary']) * 100)
+        
+        # Calculate skill scores
+        skill_scores = []
+        for skill_name, required_level in job_skills.items():
+            applicant_level = applicant_skills.get(skill_name, 0)
+            skill_score = min(100, (applicant_level / required_level) * 100)
+            skill_scores.append({
+                'name': skill_name,
+                'applicant_level': applicant_level,
+                'required_level': required_level,
+                'score': skill_score
+            })
+        
+        total_skill_score = sum(skill['score'] for skill in skill_scores) / len(skill_scores) if skill_scores else 0
+        
+        # Calculate overall score
+        match_score = (experience_score * 0.3 + 
+                      location_match * 0.2 + 
+                      salary_score * 0.3 + 
+                      total_skill_score * 0.2)
+        
+        candidates_list.append({
+            'id': applicant['id'],
+            'name': applicant['name'],
+            'experience': applicant['experience'],
+            'desired_salary': applicant['desired_salary'],
+            'location': applicant['location'],
+            'skills': applicant['skills'],
+            'match_score': match_score
+        })
+    
+    # Sắp xếp ứng viên theo điểm số giảm dần
+    candidates_list.sort(key=lambda x: x['match_score'], reverse=True)
+    
+    # Giới hạn số lượng ứng viên theo max_candidates
+    candidates_list = candidates_list[:job_dict['max_candidates']]
+    
+    conn.close()
+    return jsonify({
+        'job': job_dict,
+        'candidates': candidates_list
+    })
+
+@app.route('/api/applicant_details/<int:applicant_id>/<int:job_id>')
+def applicant_details(applicant_id, job_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get applicant details
+        cursor.execute('''
+            SELECT a.*, GROUP_CONCAT(DISTINCT s.name || ':' || aps.level) as skills
+            FROM applicants a
+            LEFT JOIN applicant_skills aps ON a.id = aps.applicant_id
+            LEFT JOIN skills s ON aps.skill_id = s.id
+            WHERE a.id = ?
+            GROUP BY a.id
+        ''', (applicant_id,))
+        applicant = cursor.fetchone()
+        
+        if not applicant:
+            return jsonify({'error': 'Applicant not found'}), 404
+            
+        # Convert sqlite3.Row to dictionary immediately
+        applicant = dict(applicant)
+        
+        # Get job details
+        cursor.execute('''
+            SELECT j.*, GROUP_CONCAT(DISTINCT s.name || ':' || js.required_level) as skills
+            FROM jobs j
+            LEFT JOIN job_skills js ON j.id = js.job_id
+            LEFT JOIN skills s ON js.skill_id = s.id
+            WHERE j.id = ?
+            GROUP BY j.id
+        ''', (job_id,))
+        job = cursor.fetchone()
+        
+        if not job:
+            return jsonify({'error': 'Job not found'}), 404
+            
+        # Convert sqlite3.Row to dictionary immediately
+        job = dict(job)
+        
+        # Parse skills
+        applicant_skills = {}
+        if applicant['skills']:
+            for skill in applicant['skills'].split(','):
+                name, level = skill.split(':')
+                applicant_skills[name] = int(level)
+                
+        job_skills = {}
+        if job['skills']:
+            for skill in job['skills'].split(','):
+                name, level = skill.split(':')
+                job_skills[name] = int(level)
+        
+        # Calculate individual scores for display
+        experience_score = min(100, (applicant['experience'] / job['required_experience']) * 100)
+        location_match = 100 if applicant['location'] == job['location'] else 0
+        salary_score = min(100, (job['offered_salary'] / applicant['desired_salary']) * 100)
+        
+        # Calculate skill scores
+        skill_scores = []
+        for skill_name, required_level in job_skills.items():
+            applicant_level = applicant_skills.get(skill_name, 0)
+            skill_score = min(100, (applicant_level / required_level) * 100)
+            skill_scores.append({
+                'name': skill_name,
+                'applicant_level': applicant_level,
+                'required_level': required_level,
+                'score': skill_score
+            })
+        
+        total_skill_score = sum(skill['score'] for skill in skill_scores) / len(skill_scores) if skill_scores else 0
+        
+        # Calculate overall score using the same formula as top_candidates
+        overall_score = (experience_score * 0.3 + 
+                        location_match * 0.2 + 
+                        salary_score * 0.3 + 
+                        total_skill_score * 0.2)
+        
+        return jsonify({
+            'applicant': applicant,
+            'job': job,
+            'comparison': {
+                'experience_score': experience_score,
+                'location_match': location_match,
+                'salary_score': salary_score,
+                'skill_scores': skill_scores,
+                'total_skill_score': total_skill_score,
+                'overall_score': overall_score
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in applicant_details: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+@app.route('/api/applicant/<int:applicant_id>')
+def get_applicant(applicant_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Lấy thông tin ứng viên
+    cursor.execute('''
+        SELECT a.*, GROUP_CONCAT(s.name || ':' || as2.level) as skills
+        FROM applicants a
+        LEFT JOIN applicant_skills as2 ON a.id = as2.applicant_id
+        LEFT JOIN skills s ON as2.skill_id = s.id
+        WHERE a.id = ?
+        GROUP BY a.id
     ''', (applicant_id,))
     applicant = cursor.fetchone()
     
     if not applicant:
-        conn.close()
         return jsonify({'error': 'Applicant not found'}), 404
     
-    # Chuyển đổi thành dictionary
-    applicant_dict = {
-        'id': applicant[0],
-        'name': applicant[1],
-        'email': applicant[2],
-        'experience': applicant[3],
-        'industry': applicant[4],
-        'location': applicant[5],
-        'desired_salary': applicant[6]
-    }
-    
-    # Lấy danh sách kỹ năng của ứng viên
-    cursor.execute('''
-        SELECT s.name, aps.level
-        FROM applicant_skills aps
-        JOIN skills s ON s.id = aps.skill_id
-        WHERE aps.applicant_id = ?
-    ''', (applicant_id,))
-    skills = [{'name': row[0], 'level': row[1]} for row in cursor.fetchall()]
-    
-    # Lấy danh sách đơn ứng tuyển
-    cursor.execute('''
-        SELECT j.title, a.status, a.application_date
-        FROM applications a
-        JOIN jobs j ON j.id = a.job_id
-        WHERE a.applicant_id = ?
-    ''', (applicant_id,))
-    applications = [
-        {
-            'job_title': row[0],
-            'status': row[1],
-            'application_date': row[2]
-        }
-        for row in cursor.fetchall()
-    ]
-    
-    applicant_dict['skills'] = skills
-    applicant_dict['applications'] = applications
+    # Chuyển đổi applicant thành dictionary
+    applicant_dict = dict(applicant)
+    if applicant_dict['skills']:
+        applicant_dict['skills'] = [
+            {'name': skill.split(':')[0], 'level': int(skill.split(':')[1])}
+            for skill in applicant_dict['skills'].split(',')
+        ]
+    else:
+        applicant_dict['skills'] = []
     
     conn.close()
     return jsonify(applicant_dict)
