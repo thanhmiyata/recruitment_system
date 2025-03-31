@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/Users/Krizpham/Thac si/Các hệ thống thông minh/recruitment_system/venv/bin/python3.12" "$0" "$@"
+'''exec' "/Users/Krizpham/Thac si/IT6340  - Các hệ thống thông minh/recruitment_system/recruitment_system/venv/bin/python3.13" "$0" "$@"
 ' '''
 # -*- coding: utf-8 -*-
 import re
