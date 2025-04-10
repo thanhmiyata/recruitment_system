@@ -33,19 +33,49 @@ source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## Database Initialization and Demo Data
+
+Before running the application for the first time, or if you want to reset the data, you need to initialize the database and optionally populate it with demo data.
+
+*(Make sure your virtual environment is activated before running these scripts)*
+
+1.  **(Optional) Clear existing database:** If you want a completely fresh start, run:
+    ```bash
+    python clear_database.py
+    ```
+
+2.  **Initialize the database schema:** This creates the necessary tables.
+    ```bash
+    python init_db.py
+    ```
+
+3.  **Generate initial skills:** This populates the `skills` table.
+    ```bash
+    python generate_skills.py
+    ```
+
+4.  **Generate test applicants and jobs:** This adds demo data for testing.
+    ```bash
+    python generate_test_data.py
+    ```
+
 ## Usage
 
-1. Start the Flask development server:
-```bash
-python app.py
-```
+1. **Set the Flask application environment variable:**
+   *(This tells Flask where your application file is)*
+   ```bash
+   export FLASK_APP=app.py  # On Windows, use: set FLASK_APP=app.py
+   ```
 
-2. Open your web browser and navigate to:
-```
-http://localhost:5000
-```
+2. **Run the Flask development server:**
+   ```bash
+   flask run
+   ```
+   *(The server will typically start on http://127.0.0.1:5000)*
 
-3. Use the navigation menu to:
+3. **Open your web browser** and navigate to the address provided (e.g., `http://127.0.0.1:5000`).
+
+4. Use the navigation menu to:
    - Add/view applicants
    - Add/view jobs
    - Add/view skills
@@ -55,34 +85,4 @@ http://localhost:5000
 
 The system uses SQLite with the following tables:
 
-- `applicants`: Stores applicant information
-- `jobs`: Stores job postings
-- `skills`: Stores available skills
-- `applicant_skills`: Links applicants with their skills and skill levels
-- `job_skills`: Links jobs with required skills and required levels
-
-## Allocation Algorithm
-
-The system uses a greedy algorithm to match applicants with jobs based on:
-
-1. Skill match score (60% weight):
-   - Compares applicant's skill levels with job requirements
-   - Normalizes scores between 0 and 1
-
-2. Other factors (40% weight):
-   - Experience match
-   - Industry match
-   - Location match
-   - Salary expectations
-
-The algorithm:
-1. Calculates match scores for all applicant-job pairs
-2. Sorts pairs by score in descending order
-3. Greedily assigns applicants to jobs while respecting:
-   - Maximum number of candidates per job
-   - Minimum match score threshold (50%)
-   - One job per applicant
-
-## Contributing
-
-Feel free to submit issues and enhancement requests! 
+- `
