@@ -85,18 +85,24 @@ document.addEventListener('DOMContentLoaded', function() {
         row.addEventListener('click', function() {
             const applicantId = this.dataset.applicantId;
             
-            fetch(`/api/applicant_details/${applicantId}/1`)  // Sử dụng job_id = 1 làm mặc định
-                .then(response => response.json())
-                .then(data => {
-                    const applicant = data.applicant;
+            fetch(`/api/applicant/${applicantId}`) 
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(applicant => {
+                    // Dữ liệu trả về bây giờ chỉ là thông tin applicant
                     
                     // Cập nhật thông tin cơ bản
                     document.getElementById('modal-name').textContent = applicant.name;
                     document.getElementById('modal-email').textContent = applicant.email;
                     document.getElementById('modal-experience').textContent = applicant.experience;
-                    document.getElementById('modal-industry').textContent = applicant.industry;
-                    document.getElementById('modal-location').textContent = applicant.location;
-                    document.getElementById('modal-salary').textContent = applicant.desired_salary.toFixed(2);
+                    // Kiểm tra nếu có industry và location (có thể null)
+                    document.getElementById('modal-industry').textContent = applicant.industry || 'N/A'; 
+                    document.getElementById('modal-location').textContent = applicant.location || 'N/A';
+                    document.getElementById('modal-salary').textContent = applicant.desired_salary ? applicant.desired_salary.toFixed(2) : 'N/A';
                     
                     // Hiển thị kỹ năng
                     const skillsHtml = applicant.skills.map(skill => `

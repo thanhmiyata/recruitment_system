@@ -416,37 +416,43 @@ def applicant_details(applicant_id, job_id):
         if 'conn' in locals():
             conn.close()
 
+# API endpoint để lấy thông tin chi tiết của một applicant
 @app.route('/api/applicant/<int:applicant_id>')
-def get_applicant(applicant_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Lấy thông tin ứng viên
-    cursor.execute('''
-        SELECT a.*, GROUP_CONCAT(s.name || ':' || as2.level) as skills
-        FROM applicants a
-        LEFT JOIN applicant_skills as2 ON a.id = as2.applicant_id
-        LEFT JOIN skills s ON as2.skill_id = s.id
-        WHERE a.id = ?
-        GROUP BY a.id
-    ''', (applicant_id,))
-    applicant = cursor.fetchone()
-    
-    if not applicant:
-        return jsonify({'error': 'Applicant not found'}), 404
-    
-    # Chuyển đổi applicant thành dictionary
-    applicant_dict = dict(applicant)
-    if applicant_dict['skills']:
-        applicant_dict['skills'] = [
-            {'name': skill.split(':')[0], 'level': int(skill.split(':')[1])}
-            for skill in applicant_dict['skills'].split(',')
-        ]
-    else:
-        applicant_dict['skills'] = []
-    
-    conn.close()
-    return jsonify(applicant_dict)
+def get_applicant_details(applicant_id):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Lấy thông tin cơ bản của applicant
+        cursor.execute('SELECT * FROM applicants WHERE id = ?', (applicant_id,))
+        applicant = cursor.fetchone()
+        
+        if not applicant:
+            return jsonify({'error': 'Applicant not found'}), 404
+        
+        applicant_dict = dict(applicant)
+        
+        # Lấy danh sách kỹ năng của applicant
+        cursor.execute('''
+            SELECT s.name, ask.level
+            FROM applicant_skills ask
+            JOIN skills s ON ask.skill_id = s.id
+            WHERE ask.applicant_id = ?
+            ORDER BY s.name
+        ''', (applicant_id,))
+        skills = cursor.fetchall()
+        
+        applicant_dict['skills'] = [{'name': row['name'], 'level': row['level']} for row in skills]
+        
+        return jsonify(applicant_dict)
+        
+    except Exception as e:
+        print(f"Error getting applicant details: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+    finally:
+        if conn:
+            conn.close()
 
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
