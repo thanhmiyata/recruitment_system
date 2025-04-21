@@ -253,9 +253,6 @@ def allocate_candidates(applicants, jobs, applicant_skills_dict, job_skills_dict
         current_allocations = job_allocations.get(job_id, [])
         job = next((j for j in jobs if j['id'] == job_id), None)
         
-        if len(current_allocations) >= job['max_candidates']:
-            continue
-        
         # Chỉ phân bổ nếu điểm >= 0.5
         if score >= 0.5:
             current_allocations.append((applicant_id, score * 100))  # Chuyển thành phần trăm

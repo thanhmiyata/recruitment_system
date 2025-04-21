@@ -231,10 +231,8 @@ def top_candidates(job_id):
         FROM applicants a
         LEFT JOIN applicant_skills as2 ON a.id = as2.applicant_id
         LEFT JOIN skills s ON as2.skill_id = s.id
-        WHERE a.desired_salary <= ? 
-        AND a.location = ?
         GROUP BY a.id
-    ''', (job_dict['offered_salary'], job_dict['location']))
+    ''')
     applicants = cursor.fetchall()
     
     if not applicants:
@@ -309,8 +307,8 @@ def top_candidates(job_id):
     # Sắp xếp ứng viên theo điểm số giảm dần
     candidates_list.sort(key=lambda x: x['match_score'], reverse=True)
     
-    # Giới hạn số lượng ứng viên theo max_candidates
-    candidates_list = candidates_list[:job_dict['max_candidates']]
+    # Bỏ giới hạn số lượng ứng viên
+    # candidates_list = candidates_list[:job_dict['max_candidates']]
     
     conn.close()
     return jsonify({
